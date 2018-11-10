@@ -1,137 +1,81 @@
+![DroidBot UTG](droidbot/resources/dummy_documents/droidbot_utg.png)
+
 # DroidBot
 
 ## About
-A robot which automatically interacts with Android apps.
+DroidBot is a lightweight test input generator for Android.
+It can send random or scripted input events to an Android app, achieve higher test coverage more quickly, and generate a UI transition graph (UTG) after testing.
 
-DroidBot sends keyevent, gestures and simulates system events 
-in order to exploit more app states automatically.
-DroidBot decides which actions to take based on static analysis result of app
-and dynamic device information (view hierarchy).
+A sample UTG is shown [here](http://honeynet.github.io/droidbot/report_com.yelp.android/).
 
-For more details, refer to my [blog posts](http://honeynet.github.io/droidbot/).
+DroidBot has the following advantages as compared with other input generators:
 
-## Introduction
-DroidBot mainly does following two things:
+1. It does not require system modification or app instrumentation;
+2. Events are based on a GUI model (instead of random);
+3. It is programmable (can customize input for certain UI);
+4. It can produce UI structures and method traces for analysis.
 
-1. Setting up device environments, include the contacts, SMS logs, 
-call logs, GPS mocking, etc. The target app may have access to these resources, thus we 
-prepare them before starting the app.
+**Reference**
 
-    Multiple env policies can be used for setting up environments. We support:
-
-    + `none` policy which does not set up any environment;
-    + `dummy` policy which just mocks same basic environment for all apps;
-    + `static` policy which set up environment according to static information of app,
-    for example permissions and files which the app have access to;
-    + `file` policy which read environment configurations from a json file.
-
-2. Sending events during the app is running. Events includes touch, drag gestures on screen, 
-keyevents, and simulated broadcasts, etc.
-
-    Similarly, we have several policies to produce events:
-    
-    + `none` policy which does not send any event;
-    + `monkey` policy which make use of adb `monkey` tool, to produce randomized events;
-    + `random` policy which sends randomized events to device
-    + `static` policy produces a list of events based on static information of app. Eg. 
-    the intent-filters of each app.
-    + `dynamic` policy. It is actually the real human-like policy. It monitors the device 
-    states, including the running activities, the foreground window, and the hierarchy of current 
-    window and sends events according to these information.
-    It avoids going to same state too many times by comparing the window hierarchies, and 
-    it sends activity-specific intents based on static analysis of app.
-    + `file` policy which generates events from a json file.
+[Li, Yuanchun, et al. "DroidBot: a lightweight UI-guided test input generator for Android." In Proceedings of the 39th International Conference on Software Engineering Companion (ICSE-C '17). Buenos Aires, Argentina, 2017.](http://dl.acm.org/citation.cfm?id=3098352)
 
 ## Prerequisite
 
-1. `Python` version `2.7`
-2. `Java` version `1.7`
-3. `Android SDK`, make sure that `platform_tools` and `tools` added to `PATH`
-4. `androidviewclient`, install with `sudo easy_install --upgrade androidviewclient`,
-or refer to its [wiki](https://github.com/dtmilano/AndroidViewClient/wiki)
-5. (Optional) `DroidBox` version `4.1.1`, 
-download from [here](http://droidbox.googlecode.com/files/DroidBox411RC.tar.gz)
+1. `Python` (both 2 and 3 are supported)
+2. `Java`
+3. `Android SDK`
+4. Add `platform_tools` directory in Android SDK to `PATH`
+5. (Optional) `OpenCV-Python` if you want to run DroidBot in cv mode.
 
-## Installation
+## How to install
 
-Clone this repo and use pip install:
+Clone this repo and intall with `pip`:
 
 ```shell
 git clone https://github.com/honeynet/droidbot.git
-pip install -e droidbot
+cd droidbot/
+pip install -e .
 ```
 
-## Usage
+If successfully installed, you should be able to execute `droidbot -h`.
 
-### Basic Usage
+## How to use
 
-1. Start an emulator or connect to a device using adb.
+1. Make sure you have:
+
+    + `.apk` file path of the app you want to analyze.
+    + A device or an emulator connected to your host machine via `adb`.
+
 2. Start DroidBot:
-`droidbot -h`
 
-### Usage with DroidBox (without docker)
+    ```
+    droidbot -a <path_to_apk> -o output_dir
+    ```
+    That's it! You will find much useful information, including the UTG, generated in the output dir.
 
-DroidBox print sensitive behaviours at runtime, which is useful in malware analysis.
-DroidBot can be used with DroidBox and is able to capture DroidBox logs.
-
-Step 1. Start droidbox emulator:
-
-1.1 Download DroidBox image
-```
-wget https://droidbox.googlecode.com/files/DroidBox411RC.tar.gz
-tar xfz DroidBox411RC.tar.gz
-```
-
-1.2 Create an avd named droidbox
-
-You can either use android avd manager or use `android create avd` command.
-
-1.3 Start the avd with droidbox image
-```
-cd DroidBox411RC
-sh startemu.sh droidbox
-```
-
-Step 2. Start DroidBot:
-```
-droidbot -a <sample.apk> -event dynamic -duration 100 -o droidbot_out
-```
-
-### Usage with Docker
-
-Prepare the environment on your host by creating a folder to be shared with the **DroidBot** Docker container. The folder will be used to load samples to be analyzed in **DroidBot**, and also to store output results from **DroidBot** analysis.
-```
-mkdir -p ~/mobileSamples/out
-```
-
-Now pull the ready-made Docker container (about 1.8 GB after extraction) from Honeynet Project's hub:
-```
-docker pull honeynet/droidbot
-```
-
-or, if you prefer, build your own from the GitHub repo:
-```
-git clone https://github.com/honeynet/droidbot.git
-docker build -t honeynet/droidbot droidbot
-```
-
-To run the analysis, copy your sample to the folder you created above, then start the container; you will find results in the "out" subfolder.
-```
-cp mySample.apk ~/mobileSamples/
-docker run -it --rm -v ~/mobileSamples:/samples:ro -v ~/mobileSamples/out:/samples/out honeynet/droidbot /samples/mySample.apk
-ls ~/mobileSamples/out
-```
+    + If you are using multiple devices, you may need to use `-d <device_serial>` to specify the target device. The easiest way to determine a device's serial number is calling `adb devices`.
+    + On some devices, you may need to manually turn on accessibility service for DroidBot (required by DroidBot to get current view hierarchy).
+    + If you want to test a large scale of apps, you may want to add `-keep_env` option to avoid re-installing the test environment every time.
+    + You can also use a json-format script to customize input for certain states. Here are some [script samples](script_samples/). Simply use `-script <path_to_script.json>` to use DroidBot with a script.
+    + If your apps do not support getting views through Accessibility (e.g., most games based on Cocos2d, Unity3d), you may find `-cv` option helpful.
+    + You can use `-humanoid` option to let DroidBot communicate with [Humanoid](https://github.com/yzygitzh/Humanoid) in order to generate human-like test inputs.
+    + You may find other useful features in `droidbot -h`.
 
 ## Evaluation
 
-DroidBot is evaluated by comparing with DroidBot default mode (which does nothing)
-and adb Monkey tool. The results are in [result](/evaluation_reports/README.md).
-
-Or see my visualized evaluation reports at [DroidBot Posts](http://honeynet.github.io/droidbot/).
+We have conducted several experiments to evaluate DroidBot by testing apps with DroidBot and Monkey.
+The results can be found at [DroidBot Posts](http://honeynet.github.io/droidbot/).
+A sample evaluation report can be found [here](http://honeynet.github.io/droidbot/2015/07/30/Evaluation_Report_2015-07-30_1501.html).
 
 ## Acknowledgement
 
-1. [AndroidViewClient](https://github.com/dtmilano/AndroidViewClient) 
-is an amazing tool that simplifies test script creation.
+1. [AndroidViewClient](https://github.com/dtmilano/AndroidViewClient)
 2. [Androguard](http://code.google.com/p/androguard/)
-is well-known for reverse-engineering of Android APKs.
+3. [The Honeynet project](https://www.honeynet.org/)
+4. [Google Summer of Code](https://summerofcode.withgoogle.com/)
+
+## Useful links
+
+- [DroidBot Blog Posts](http://honeynet.github.io/droidbot/)
+- [droidbotApp Source Code](https://github.com/ylimit/droidbotApp)
+- [How to contact the author](http://ylimit.github.io)

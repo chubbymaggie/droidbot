@@ -28,3 +28,51 @@ def parse_log(log_msg):
     log_dict['datetime'] = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S.%f")
 
     return log_dict
+
+
+def get_available_devices():
+    """
+    Get a list of device serials connected via adb
+    :return: list of str, each str is a device serial number
+    """
+    import subprocess
+    r = subprocess.check_output(["adb", "devices"])
+    if not isinstance(r, str):
+        r = r.decode()
+    devices = []
+    for line in r.splitlines():
+        segs = line.strip().split()
+        if len(segs) == 2 and segs[1] == "device":
+            devices.append(segs[0])
+    return devices
+
+
+def weighted_choice(choices):
+    import random
+    total = sum(choices[c] for c in list(choices.keys()))
+    r = random.uniform(0, total)
+    upto = 0
+    for c in list(choices.keys()):
+        if upto + choices[c] > r:
+            return c
+        upto += choices[c]
+
+
+def safe_re_match(regex, content):
+    if not regex or not content:
+        return None
+    else:
+        return regex.match(content)
+
+
+def list_to_html_table(dict_data):
+    table = "<table class=\"table\">\n"
+    for (key, value) in dict_data:
+        table += "<tr><th>%s</th><td>%s</td></tr>\n" % (key, value)
+    table += "</table>"
+    return table
+
+
+def md5(input_str):
+    import hashlib
+    return hashlib.md5(input_str.encode('utf-8')).hexdigest()
